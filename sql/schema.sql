@@ -82,7 +82,6 @@ CREATE TABLE ratings(
 CREATE TABLE links(
     movie_id INTEGER,
     imdb_id INTEGER NOT NULL UNIQUE,
-    tmdb_id INTEGER NULL UNIQUE,
 
     PRIMARY KEY (movie_id),
 
