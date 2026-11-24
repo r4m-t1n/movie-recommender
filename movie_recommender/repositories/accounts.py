@@ -6,6 +6,13 @@ class AccountRepository:
     def __init__(self, connection: psycopg.Connection):
         self.connection = connection
 
+
+    def add_user(self) -> int:
+        result = self.connection.execute(
+            "INSERT INTO users DEFAULT VALUES RETURNING user_id").fetchone()
+
+        return result[0]
+
     def add_account(self, account: Account):
         self.connection.execute("INSERT INTO accounts "
             "(user_id, name, last_name, username, hashed_password)"
