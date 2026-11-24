@@ -19,6 +19,19 @@ CREATE TABLE accounts(
             ON DELETE RESTRICT
 );
 
+CREATE TABLE sessions(
+    session_id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    token_hash VARCHAR(256) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(user_id)
+            ON UPDATE CASCADE
+            ON DELETE RESTRICT
+);
+
 CREATE TABLE movies(
     movie_id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,

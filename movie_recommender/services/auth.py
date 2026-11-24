@@ -1,11 +1,28 @@
+import secrets
+import hashlib
+import datetime
+
 import psycopg
 import argon2
 
 from movie_recommender import db
-from movie_recommender.models import Account
+from movie_recommender.models import Account, Session
 from movie_recommender.repositories.accounts import AccountRepository
+from movie_recommender.repositories.sessions import SessionRepository
 
 password_hasher = argon2.PasswordHasher()
+
+TOKEN_AVAILABILITY = 3600 * 4
+
+
+def create_token(repo: SessionRepository) -> tuple[str, str]:
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    while repo.get_session(token_hash) is not None:
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    return token, token_hash
 
 def register(username: str, password: str, name: str, last_name: str | None = None) -> bool:
     try:
@@ -36,20 +53,32 @@ def register(username: str, password: str, name: str, last_name: str | None = No
     except psycopg.errors.UniqueViolation:
         return False
 
-def login(username: str, password: str) -> bool:
+def login(username: str, password: str) -> str | None:
     with db.connect() as conn:
         acc_rep = AccountRepository(conn)
 
         account = acc_rep.get_by_username(username)
 
         if account is None:
-            return False
+            return None
 
         try:
             password_hasher.verify(account.hashed_password, password)
         except argon2.exceptions.VerifyMismatchError:
-            return False
+            return None
 
         acc_rep.update_last_login(username, None)
 
-        return True
+        session_rep = SessionRepository(conn)
+        token, token_hash = create_token(session_rep)
+
+        new_session = Session(
+            None,
+            account.user_id,
+            token_hash,
+            None,
+            datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=TOKEN_AVAILABILITY)
+        )
+        session_rep.create_session(new_session)
+
+        return token

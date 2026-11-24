@@ -16,6 +16,14 @@ class Account:
     last_login: datetime.datetime | None
 
 @dataclass
+class Session:
+    session_id: int
+    user_id: int
+    token_hash: str
+    created_at: datetime.datetime | None
+    expires_at: datetime.datetime
+
+@dataclass
 class Movie:
     movie_id: int
     title: str
