@@ -14,13 +14,15 @@ password_hasher = argon2.PasswordHasher()
 
 TOKEN_AVAILABILITY = 3600 * 4
 
+def generate_hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
-def create_token(repo: SessionRepository) -> tuple[str, str]:
+def generate_token(repo: SessionRepository) -> tuple[str, str]:
     token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    token_hash = generate_hash_token(token)
     while repo.get_session(token_hash) is not None:
         token = secrets.token_urlsafe(32)
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        token_hash = generate_hash_token(token)
 
     return token, token_hash
 
@@ -70,7 +72,7 @@ def login(username: str, password: str) -> str | None:
         acc_rep.update_last_login(username, None)
 
         session_rep = SessionRepository(conn)
-        token, token_hash = create_token(session_rep)
+        token, token_hash = generate_token(session_rep)
 
         new_session = Session(
             None,
@@ -82,3 +84,22 @@ def login(username: str, password: str) -> str | None:
         session_rep.create_session(new_session)
 
         return token
+
+def authenticate(token: str) -> int | None:
+    with db.connect() as conn:
+        session_rep = SessionRepository(conn)
+
+        token_hash = generate_hash_token(token)
+
+        session = session_rep.get_session(token_hash)
+
+        if session is None:
+            return None
+
+        return session.user_id
+
+def log_out(token: str):
+    with db.connect() as conn:
+        session_rep = SessionRepository(conn)
+        token_hash = generate_hash_token(token)
+        return session_rep.delete_session(token_hash)
